@@ -1,6 +1,15 @@
-#!/usr/bin/env ruby -w
+#!/usr/bin/env ruby -rubygems -w
 # Runs the test suite against a local server spawned automatically in a
 # subprocess. After tests are done, the subprocess is killed.
+#
+# If filename arguments are given, only those files are run. If arguments given
+# are not filenames, they are taken as words that filter the list of files to run.
+#
+# Examples
+#
+#   $ script/test
+#   $ script/test test/env_test.rb
+#   $ script/test excon typhoeus
 
 require 'bundler'
 Bundler.setup
@@ -8,6 +17,10 @@ Bundler.setup
 host      = '127.0.0.1'
 logfile   = 'log/test.log'
 test_glob = 'test/**/*_test.rb'
+
+require 'fileutils'
+FileUtils.mkdir_p 'log'
+FileUtils.touch logfile
 
 # find available port
 require 'socket'
