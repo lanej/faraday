@@ -1,4 +1,4 @@
-script: script/test
+script: ruby script/test
 
 language: ruby
 

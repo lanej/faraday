@@ -1,4 +1,7 @@
 #!/usr/bin/env ruby -w
+# Runs the test suite against a local server spawned automatically in a
+# subprocess. After tests are done, the subprocess is killed.
+
 require 'bundler'
 Bundler.setup
 
