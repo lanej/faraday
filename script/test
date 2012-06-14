@@ -1,0 +1,59 @@
+#!/usr/bin/env ruby -w
+require 'bundler'
+Bundler.setup
+
+host      = '127.0.0.1'
+logfile   = 'log/test.log'
+test_glob = 'test/**/*_test.rb'
+
+# find available port
+require 'socket'
+port = begin
+  server = TCPServer.new(host, 0)
+  server.addr[1]
+ensure
+  server.close if server
+end
+
+# start test server in a separate process
+pid = fork do
+  $VERBOSE = false
+  $PROGRAM_NAME = "Faraday test server at #{port}"
+  $stdout.reopen logfile, 'w'
+  $stderr.reopen logfile, 'w'
+  require File.expand_path('../../test/live_server', __FILE__)
+  Faraday::LiveServer.run! :port => port
+end
+
+# ensure test server will be eventually shut down
+at_exit { Process.kill('INT', pid) }
+
+# find files to test
+test_files = Dir[test_glob]
+if ARGV.any?
+  all_files, test_files = test_files, []
+  for arg in ARGV
+    re = /(\b|_)#{arg}(\b|_)/
+    test_files.concat all_files.select { |f| f =~ re }
+  end
+end
+
+require 'net/http'
+conn = Net::HTTP.new host, port
+conn.open_timeout = conn.read_timeout = 0.05
+
+# test if test server is accepting requests
+responsive = lambda { |path|
+  begin
+    res = conn.start { conn.get(path) }
+    res.is_a?(Net::HTTPSuccess)
+  rescue Errno::ECONNREFUSED, Errno::EBADF
+    false
+  end
+}
+
+# block until test server is ready
+sleep 0.05 until responsive.call('/echo')
+
+ENV['LIVE'] = "http://#{host}:#{port}"
+system 'ruby', '-Ilib:test', '-S', 'testrb', *test_files
